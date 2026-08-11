@@ -2,6 +2,7 @@
  * In-memory mock database, persisted to localStorage so the UI keeps its
  * state across reloads while the backend write endpoints do not exist yet.
  */
+import { MOCK_SINGLE_SITE } from '@/config'
 import type {
   Device,
   DeviceInterface,
@@ -30,8 +31,8 @@ export interface MockDb {
   sequences: Record<string, number>
 }
 
-/** Set VITE_MOCK_SINGLE_SITE=true to exercise the auto-select-single-site path. */
-const SINGLE_SITE = import.meta.env.VITE_MOCK_SINGLE_SITE === 'true'
+/** Set BNC_MOCK_SINGLE_SITE=true to exercise the auto-select-single-site path. */
+const SINGLE_SITE = MOCK_SINGLE_SITE
 
 function seedSites(): Site[] {
   const sites: Site[] = [

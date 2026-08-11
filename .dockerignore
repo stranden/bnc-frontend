@@ -1,0 +1,25 @@
+# Keep the build context small and the image reproducible.
+.git
+.gitignore
+.gitattributes
+node_modules
+dist
+dist-ssr
+
+# Local environment — secrets must never reach the image.
+.env
+.env.local
+.env.*.local
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+*.log
+*.local
+
+# Not needed to build the app
+Dockerfile
+.dockerignore
+README.md
+LICENSE

@@ -6,21 +6,13 @@
  * device CRUD, interfaces, switchport templates, VLAN provisioning — is
  * routed through the mock transport until the backend grows those endpoints.
  *
- * Set `VITE_USE_MOCK=false` once the backend is complete; no component code
- * needs to change.
+ * Set `useMock` to false (build-time `VITE_USE_MOCK`, or runtime `BNC_USE_MOCK`
+ * in the container) once the backend is complete; no component code changes.
  */
+import { API_BASE_URL, MOCK_UNIMPLEMENTED, USE_MOCK } from '@/config'
 import { handleMock, isMockedPath } from './mock'
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
-
-/** Global mock switch. Defaults to on so the app is usable out of the box. */
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
-
-/**
- * When mocking is off we still fall back to the mock transport for endpoints
- * the backend does not implement yet, unless explicitly disabled.
- */
-export const MOCK_UNIMPLEMENTED = import.meta.env.VITE_MOCK_UNIMPLEMENTED !== 'false'
+export { API_BASE_URL, MOCK_UNIMPLEMENTED, USE_MOCK }
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 

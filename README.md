@@ -134,13 +134,60 @@ incrementally.
 src/
   api/          transport, typed endpoint modules, mock backend
   components/   reusable UI (modal, forms, badges, site switcher)
+  config.ts     runtime + build-time configuration
   layouts/      authenticated app shell
   router/       routes and auth guard
   stores/       Pinia stores: auth, site, devices, templates, ipam, toast
   types/        types mirroring the backend Pydantic schemas
   utils/        IPv4/CIDR helpers
   views/        page components
+docker/
+  nginx.conf.template        nginx config, rendered by envsubst at start
+  40-bnc-runtime-config.sh   writes /config.js from BNC_* env vars
 ```
+
+## Docker
+
+The image is a multi-stage build: Node compiles the app, then nginx serves the
+static output and proxies `/api` to the BNC backend. Because the browser and
+the API share an origin, the backend needs no CORS configuration.
+
+```bash
+docker build -t bnc-frontend:local .
+docker run --rm -p 8080:8080 \
+  -e BNC_BACKEND_URL=http://bnc-backend:8000 \
+  bnc-frontend:local
+```
+
+The image runs the same way on a Linux server and on Windows Docker Desktop
+(such as an EIC PC); there are no bind mounts or host paths.
+
+### Runtime configuration
+
+Vite normally inlines `import.meta.env` at build time, which would mean a
+rebuild per environment. Instead the container regenerates `/config.js` on
+every start from the environment, and the app reads that first — so a single
+image can be promoted from a test bench to an OB truck unchanged.
+
+| Variable                  | Default                     | Purpose                                              |
+|---------------------------|-----------------------------|------------------------------------------------------|
+| `BNC_BACKEND_URL`         | `http://bnc-backend:8000`   | Where nginx forwards `/api`.                          |
+| `BNC_API_BASE_URL`        | `/api`                      | Base path the frontend calls.                         |
+| `BNC_USE_MOCK`            | `false`                     | Serve everything from the built-in mock.              |
+| `BNC_MOCK_UNIMPLEMENTED`  | `true`                      | Mock only the endpoints the backend still lacks.      |
+| `BNC_MOCK_LATENCY`        | `0`                         | Artificial mock latency, in ms.                       |
+| `BNC_MOCK_SINGLE_SITE`    | `false`                     | Seed one site, to test default-site selection.        |
+| `BNC_AUTH_PROVIDER`       | `dev`                       | `dev`, `token` or `netbox`.                           |
+
+Precedence is runtime `/config.js` → build-time `.env` → built-in fallback.
+
+The container listens on **8080** (an unprivileged port) and exposes
+`/healthz` for container health checks. It is designed to sit alongside the
+backend on a shared Docker network, where `BNC_BACKEND_URL` resolves via the
+service name.
+
+> Set `BNC_USE_MOCK=false` for any real deployment, otherwise the UI will
+> happily show seeded demo data instead of your NetBox inventory.
 
 ## Scripts
 

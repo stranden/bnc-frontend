@@ -2,7 +2,8 @@
  * Authentication store.
  *
  * The auth provider is deliberately pluggable because the backend has not
- * settled on one yet. `VITE_AUTH_PROVIDER` selects the strategy:
+ * settled on one yet. `VITE_AUTH_PROVIDER` (build time) or `BNC_AUTH_PROVIDER`
+ * (runtime, in the container) selects the strategy:
  *
  *   - `dev`   — accepts any credentials locally, no backend call. Default
  *               while the backend has no auth at all.
@@ -17,12 +18,12 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { authApi } from '@/api'
 import { ApiError, configureAuthTransport } from '@/api/http'
+import { AUTH_PROVIDER, type AuthProviderName } from '@/config'
 import type { LoginRequest, User } from '@/types/bnc'
 
-export type AuthProvider = 'dev' | 'token' | 'netbox'
+export type AuthProvider = AuthProviderName
 
-export const AUTH_PROVIDER: AuthProvider =
-  (import.meta.env.VITE_AUTH_PROVIDER as AuthProvider) ?? 'dev'
+export { AUTH_PROVIDER }
 
 const TOKEN_KEY = 'bnc.auth.token'
 const USER_KEY = 'bnc.auth.user'

@@ -1,0 +1,13 @@
+# Normalise line endings so the image builds identically on Windows and Linux.
+* text=auto eol=lf
+
+# Shell scripts run inside Linux containers; CRLF would break the shebang.
+*.sh text eol=lf
+docker/* text eol=lf
+
+# Binary assets must never be transformed.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

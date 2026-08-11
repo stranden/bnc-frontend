@@ -9,6 +9,9 @@
       content="Broadcast Network Controller — NetBox-backed control plane for broadcast networks."
     />
     <title>Broadcast Network Controller</title>
+    <!-- Runtime configuration; replaced by the container entrypoint. Loaded
+         before the app bundle so window.__BNC_CONFIG__ is always available. -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="app"></div>

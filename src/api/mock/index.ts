@@ -21,11 +21,12 @@ import type {
   VLAN,
   VlanProvisionRequest,
 } from '@/types/bnc'
+import { MOCK_LATENCY } from '@/config'
 import { ApiError, type HttpMethod, type RequestOptions } from '../http'
 import { getDb, nextId, persist, resetDb } from './db'
 
 /** Artificial latency so loading states are visible during development. */
-const LATENCY_MS = Number(import.meta.env.VITE_MOCK_LATENCY ?? 220)
+const LATENCY_MS = MOCK_LATENCY
 
 const delay = (ms = LATENCY_MS) => new Promise((resolve) => setTimeout(resolve, ms))
 
