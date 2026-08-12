@@ -37,22 +37,42 @@ const delay = (ms = LATENCY_MS) => new Promise((resolve) => setTimeout(resolve, 
  */
 const NO_CONTENT = Symbol('no-content')
 
-/** Endpoints the real backend already implements — never mocked when live. */
-const BACKEND_IMPLEMENTED: Array<[HttpMethod, RegExp]> = [
-  ['GET', /^\/sites$/],
-  ['GET', /^\/devices$/],
-  ['GET', /^\/device-types$/],
-  ['GET', /^\/prefixes$/],
-  ['GET', /^\/ip-addresses$/],
-  ['GET', /^\/vlan-groups$/],
-  ['GET', /^\/vlans$/],
-  ['GET', /^\/healthz$/],
-  ['GET', /^\/readyz$/],
+/**
+ * Endpoints the real backend has not implemented yet — always served by the
+ * mock, even when `USE_MOCK` is false. Kept in sync with the `backend:
+ * pending` annotations in `src/api/index.ts`; move an entry out of this list
+ * once the matching endpoint ships upstream.
+ */
+export const MOCKED_WRITE_ENDPOINTS: Array<[HttpMethod, RegExp]> = [
+  // Auth — provider not chosen yet.
+  ['POST', /^\/auth\/login$/],
+  ['POST', /^\/auth\/logout$/],
+  ['GET', /^\/auth\/me$/],
+  // Devices — list/get exist upstream, writes do not.
+  ['POST', /^\/devices$/],
+  ['PATCH', /^\/devices\/\d+$/],
+  ['PUT', /^\/devices\/\d+$/],
+  ['DELETE', /^\/devices\/\d+$/],
+  // Interfaces — nothing implemented upstream yet.
+  ['GET', /^\/interfaces$/],
+  ['PATCH', /^\/interfaces\/\d+$/],
+  ['PUT', /^\/interfaces\/\d+$/],
+  ['POST', /^\/interfaces\/apply-templates$/],
+  // Switchport templates — BNC-owned, nothing upstream yet.
+  ['GET', /^\/switchport-templates$/],
+  ['POST', /^\/switchport-templates$/],
+  ['GET', /^\/switchport-templates\/[^/]+$/],
+  ['PATCH', /^\/switchport-templates\/[^/]+$/],
+  ['PUT', /^\/switchport-templates\/[^/]+$/],
+  ['DELETE', /^\/switchport-templates\/[^/]+$/],
+  // VLANs — list exists upstream, provisioning/removal do not.
+  ['POST', /^\/vlans$/],
+  ['DELETE', /^\/vlans\/\d+$/],
 ]
 
-export function isMockedPath(method: HttpMethod, path: string): boolean {
+export function isMockedEndpoint(method: HttpMethod, path: string): boolean {
   const clean = path.split('?')[0]
-  return !BACKEND_IMPLEMENTED.some(([m, re]) => m === method && re.test(clean))
+  return MOCKED_WRITE_ENDPOINTS.some(([m, re]) => m === method && re.test(clean))
 }
 
 function slugify(value: string): string {

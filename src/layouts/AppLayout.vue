@@ -119,7 +119,7 @@ async function signOut() {
             B
           </div>
           <div class="leading-tight">
-            <p class="font-semibold">BNC</p>
+            <!--<p class="font-semibold">BNC</p>-->
             <p class="text-base-content/50 text-xs">Broadcast Network Controller</p>
           </div>
         </RouterLink>
