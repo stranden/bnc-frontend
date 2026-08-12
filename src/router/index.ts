@@ -88,7 +88,7 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to) => {
   const title = to.meta.title as string | undefined
-  document.title = title ? `${title} · BNC` : 'Broadcast Network Controller'
+  document.title = title ? `BNC · ${title}` : 'Broadcast Network Controller'
 })
 
 export default router
