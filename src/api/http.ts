@@ -6,13 +6,15 @@
  * device CRUD, interfaces, switchport templates, VLAN provisioning — is
  * routed through the mock transport until the backend grows those endpoints.
  *
- * Set `useMock` to false (build-time `VITE_USE_MOCK`, or runtime `BNC_USE_MOCK`
- * in the container) once the backend is complete; no component code changes.
+ * Set `USE_MOCK` to false (build-time `VITE_USE_MOCK`) once the backend is
+ * complete; no component code changes. Endpoints the backend still doesn't
+ * implement are listed explicitly in `api/mock` (`MOCKED_WRITE_ENDPOINTS`)
+ * and stay mocked even when `USE_MOCK` is false.
  */
-import { API_BASE_URL, MOCK_UNIMPLEMENTED, USE_MOCK } from '@/config'
-import { handleMock, isMockedPath } from './mock'
+import { API_BASE_URL, USE_MOCK } from '@/config'
+import { handleMock, isMockedEndpoint } from './mock'
 
-export { API_BASE_URL, MOCK_UNIMPLEMENTED, USE_MOCK }
+export { API_BASE_URL, USE_MOCK }
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -89,7 +91,7 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  if (USE_MOCK || (MOCK_UNIMPLEMENTED && isMockedPath(method, path))) {
+  if (USE_MOCK || isMockedEndpoint(method, path)) {
     return handleMock<T>(method, path, options)
   }
 
