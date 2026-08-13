@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import SiteSwitcher from '@/components/SiteSwitcher.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -7,6 +8,7 @@ import { useDeviceStore } from '@/stores/devices'
 import { useIpamStore } from '@/stores/ipam'
 import { useSiteStore } from '@/stores/site'
 import { useTemplateStore } from '@/stores/templates'
+import { useUiStore } from '@/stores/ui'
 import { USE_MOCK } from '@/api/http'
 
 const router = useRouter()
@@ -15,15 +17,55 @@ const siteStore = useSiteStore()
 const deviceStore = useDeviceStore()
 const templateStore = useTemplateStore()
 const ipamStore = useIpamStore()
+const uiStore = useUiStore()
 
-const drawerOpen = ref(true)
+const drawerOpen = storeToRefs(uiStore).drawerOpen
 
 const nav = [
-  { to: { name: 'dashboard' }, label: 'Overview', icon: '▤' },
-  { to: { name: 'sites' }, label: 'Sites', icon: '⌂' },
-  { to: { name: 'devices' }, label: 'Devices', icon: '▦' },
-  { to: { name: 'templates' }, label: 'Port templates', icon: '⛭' },
-  { to: { name: 'vlans' }, label: 'VLANs & subnets', icon: '⇄' },
+  /*{
+    href: { name: 'dashboard' },
+    label: 'Overview',
+    icon: `<rect x="3" y="3" width="7" height="7" rx="1" />
+           <rect x="14" y="3" width="7" height="7" rx="1" />
+           <rect x="14" y="14" width="7" height="7" rx="1" />
+           <rect x="3" y="14" width="7" height="7" rx="1" />`,
+  },*/
+  {
+    href: { name: 'sites' },
+    label: 'Sites',
+    icon: `<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+           <polyline points="9 22 9 12 15 12 15 22" />`,
+  },
+  {
+    href: { name: 'devices' },
+    label: 'Devices',
+    icon: `<rect width="20" height="8" x="2" y="2" rx="2" />
+           <rect width="20" height="8" x="2" y="14" rx="2" />
+           <line x1="6" x2="6.01" y1="6" y2="6" />
+           <line x1="6" x2="6.01" y1="18" y2="18" />`,
+  },
+  {
+    href: { name: 'templates' },
+    label: 'Port templates',
+    icon: `<line x1="21" x2="14" y1="4" y2="4" />
+           <line x1="10" x2="3" y1="4" y2="4" />
+           <line x1="21" x2="12" y1="12" y2="12" />
+           <line x1="8" x2="3" y1="12" y2="12" />
+           <line x1="21" x2="16" y1="20" y2="20" />
+           <line x1="12" x2="3" y1="20" y2="20" />
+           <line x1="14" x2="14" y1="2" y2="6" />
+           <line x1="8" x2="8" y1="10" y2="14" />
+           <line x1="16" x2="16" y1="18" y2="22" />`,
+  },
+  {
+    href: { name: 'vlans' },
+    label: 'VLANs & subnets',
+    icon: `<rect x="16" y="16" width="6" height="6" rx="1" />
+           <rect x="2" y="16" width="6" height="6" rx="1" />
+           <rect x="9" y="2" width="6" height="6" rx="1" />
+           <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+           <path d="M12 12V8" />`,
+  },
 ]
 
 onMounted(async () => {
@@ -48,7 +90,7 @@ async function signOut() {
     <input
       id="menu-drawer"
       type="checkbox"
-      class="drawer-toggle"
+      class="drawer-toggle inline"
       v-model="drawerOpen"
     />
 
@@ -204,14 +246,13 @@ async function signOut() {
     <!-- Sidebar -->
     <!-- ============================================ -->
     <div class="drawer-side">
-      <!-- Mobile overlay -->
       <label
         for="menu-drawer"
         aria-label="close sidebar"
         class="drawer-overlay"
       ></label>
 
-      <aside
+      <div
         class="flex min-h-full flex-col
                bg-base-200
                lg:w-64
@@ -225,148 +266,64 @@ async function signOut() {
           class="flex h-16 min-h-16 items-center
                  border-b border-base-300 p-3"
         >
-          <!-- B logo -->
-          <div
-            class="grid size-9 shrink-0 place-items-center
-                   rounded-lg bg-primary
-                   text-lg font-bold
-                   text-primary-content shadow-sm"
+          <RouterLink
+            :to="{ name: 'dashboard' }"
+            class="border-base-300 flex items-center"
           >
-            B
-          </div>
-
-          <!-- Application name -->
-          <div
-            class="ml-3 min-w-0 leading-tight
-                   lg:is-drawer-close:hidden"
-          >
-            <div class="font-bold tracking-tight">
-              BNC
+            <!-- B logo -->
+            <div
+              class="grid size-9 shrink-0 place-items-center
+                    rounded-lg bg-primary
+                    text-lg font-bold
+                    text-primary-content shadow-sm"
+            >
+              B
             </div>
+            <!-- Application name -->
+            <div
+              class="ml-3 min-w-0 leading-tight
+                    lg:is-drawer-close:hidden"
+            >
+              <div class="font-bold tracking-tight">
+                BNC
+              </div>
 
-            <div class="truncate text-xs text-base-content/50">
-              Broadcast Network Controller
+              <div class="truncate text-xs text-base-content/50">
+                Broadcast Network Controller
+              </div>
             </div>
-          </div>
+          </RouterLink>
         </div>
 
         <!-- ======================================== -->
         <!-- Navigation -->
         <!-- ======================================== -->
-        <ul class="menu w-full grow gap-1 p-3">
+        <ul class="menu w-full grow">
           <li v-for="item in nav" :key="item.label">
-            <RouterLink
-              :to="item.to"
-              active-class="menu-active"
-              class="gap-3"
-              @click="drawerOpen = false"
-            >
-              <span class="w-4 text-center opacity-60">{{ item.icon }}</span>
-              {{ item.label }}
+            <RouterLink :to="item.href" custom v-slot="{ navigate, isActive }">
+              <button
+                @click="navigate"
+                :class="{ 'menu-active': isActive }"
+                class="lg:is-drawer-close:tooltip lg:is-drawer-close:tooltip-right"
+                :data-tip="item.label"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="my-1.5 size-4 opacity-60"
+                  v-html="item.icon">
+                </svg>
+                <span class="lg:is-drawer-close:hidden">{{ item.label }}</span>
+              </button>
             </RouterLink>
           </li>
         </ul>
-        
-        <ul class="menu w-full grow">
-
-          <!-- Homepage -->
-          <li>
-            <button
-              class="lg:is-drawer-close:tooltip
-                     lg:is-drawer-close:tooltip-right"
-              data-tip="Homepage"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="my-1.5 size-4"
-              >
-                <path
-                  d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"
-                />
-                <path
-                  d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-                />
-              </svg>
-
-              <span class="lg:is-drawer-close:hidden">
-                Homepage
-              </span>
-            </button>
-          </li>
-
-          <!-- Settings -->
-          <li>
-            <button
-              class="lg:is-drawer-close:tooltip
-                     lg:is-drawer-close:tooltip-right"
-              data-tip="Settings"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="my-1.5 size-4"
-              >
-                <path d="M20 7h-9" />
-                <path d="M14 17H5" />
-                <circle cx="17" cy="17" r="3" />
-                <circle cx="7" cy="7" r="3" />
-              </svg>
-
-              <span class="lg:is-drawer-close:hidden">
-                Settings
-              </span>
-            </button>
-          </li>
-        </ul>
-
-        <!-- ======================================== -->
-        <!-- Drawer toggle -->
-        <!-- ======================================== -->
-        <div class="border-t border-base-300 p-2">
-
-          <label
-            for="menu-drawer"
-            class="btn btn-ghost w-full justify-start
-                   lg:is-drawer-close:btn-square
-                   lg:is-drawer-close:justify-center
-                   lg:is-drawer-close:tooltip
-                   lg:is-drawer-close:tooltip-right"
-            data-tip="Collapse menu"
-          >
-            <!-- Menu icon -->
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="size-5 shrink-0"
-            >
-              <path d="M4 6h16" />
-              <path d="M4 12h16" />
-              <path d="M4 18h16" />
-            </svg>
-
-            <span class="lg:is-drawer-close:hidden">
-              Collapse menu
-            </span>
-          </label>
-        </div>
-
-      </aside>
+      </div>
     </div>
   </div>
 </template>
