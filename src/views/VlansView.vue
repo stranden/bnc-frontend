@@ -3,49 +3,56 @@ import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/BaseModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
 import VlanForm from '@/components/VlanForm.vue'
 import { ApiError } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
-import { emptyVlanRequest, useIpamStore } from '@/stores/ipam'
+import { emptyVlanDraft, useIpamStore } from '@/stores/ipam'
 import { useSiteStore } from '@/stores/site'
+import { templateBadgeClass, useTemplateStore } from '@/stores/templates'
 import { useToastStore } from '@/stores/toast'
-import type { VLAN, VlanProvisionRequest } from '@/types/bnc'
+import type { Vlan, VlanCreate } from '@/types/bnc'
 
 const ipamStore = useIpamStore()
 const siteStore = useSiteStore()
+const templateStore = useTemplateStore()
 const auth = useAuthStore()
 const toasts = useToastStore()
+
+templateStore.fetchTemplates()
 
 const search = ref('')
 const formOpen = ref(false)
 const submitting = ref(false)
-const draft = ref<VlanProvisionRequest>(emptyVlanRequest(siteStore.activeSiteId))
-const deleteTarget = ref<VLAN | null>(null)
+const draft = ref<VlanCreate>(emptyVlanDraft(siteStore.activeSiteId))
+const deleteTarget = ref<Vlan | null>(null)
 const deleting = ref(false)
 
 // Keep the draft's site aligned with the active site while the form is closed.
 watch(
   () => siteStore.activeSiteId,
   (siteId) => {
-    if (!formOpen.value) draft.value = emptyVlanRequest(siteId)
+    if (!formOpen.value) draft.value = emptyVlanDraft(siteId)
   },
 )
 
 const filtered = computed(() => {
   const term = search.value.trim().toLowerCase()
   if (!term) return ipamStore.visibleVlans
-  return ipamStore.visibleVlans.filter((vlan) => {
-    const prefix = ipamStore.prefixByVlan.get(vlan.id)?.prefix ?? ''
-    return [vlan.name, String(vlan.vid), prefix, vlan.group?.name]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(term))
-  })
+  return ipamStore.visibleVlans.filter((vlan) =>
+    [vlan.name, String(vlan.vid), vlan.template].filter(Boolean).some((value) =>
+      String(value).toLowerCase().includes(term),
+    ),
+  )
 })
+
+function templateName(slug: string | null | undefined): string {
+  if (!slug) return '—'
+  return templateStore.bySlug.get(slug)?.name ?? slug
+}
 
 function openCreate() {
   draft.value = {
-    ...emptyVlanRequest(siteStore.activeSiteId),
+    ...emptyVlanDraft(siteStore.activeSiteId),
     vid: ipamStore.suggestVid(100),
   }
   formOpen.value = true
@@ -54,17 +61,8 @@ function openCreate() {
 async function save() {
   submitting.value = true
   try {
-    const vlan = await ipamStore.provisionVlan(draft.value)
-    const extras = [
-      draft.value.routing.enabled ? 'routing' : null,
-      draft.value.dhcp.enabled ? 'DHCP' : null,
-      draft.value.multicast.enabled ? 'multicast' : null,
-    ].filter(Boolean)
-
-    toasts.success(
-      `VLAN ${vlan.vid} (${vlan.name}) created`,
-      extras.length ? `Also provisioned: ${extras.join(', ')}` : undefined,
-    )
+    const vlan = await ipamStore.createVlan(draft.value)
+    toasts.success(`VLAN ${vlan.vid} (${vlan.name}) created`)
     formOpen.value = false
   } catch (err) {
     toasts.error('Could not create VLAN', err instanceof ApiError ? err.message : undefined)
@@ -77,7 +75,7 @@ async function confirmDelete() {
   if (!deleteTarget.value) return
   deleting.value = true
   try {
-    await ipamStore.deleteVlan(deleteTarget.value.id)
+    await ipamStore.deleteVlan(deleteTarget.value.vid, deleteTarget.value.site_id)
     toasts.success(`VLAN ${deleteTarget.value.vid} deleted`)
     deleteTarget.value = null
   } catch (err) {
@@ -91,8 +89,8 @@ async function confirmDelete() {
 <template>
   <div>
     <PageHeader
-      title="VLANs & subnets"
-      description="Layer-2 segments and their prefixes in NetBox. Routing, DHCP and multicast are opt-in per VLAN."
+      title="VLANs"
+      description="Layer-2 segments in NetBox, scoped to the active site. Tag a VLAN with a network template to describe its traffic class."
     >
       <template #actions>
         <button class="btn btn-sm btn-outline" :disabled="ipamStore.loading" @click="ipamStore.fetchAll()">
@@ -115,11 +113,15 @@ async function confirmDelete() {
       <span>{{ ipamStore.error }}</span>
     </div>
 
+    <div v-if="!siteStore.activeSiteId" class="alert alert-info mb-4">
+      <span>Select a site to see its VLANs.</span>
+    </div>
+
     <div class="mb-4 flex flex-wrap items-center gap-2">
       <input
         v-model="search"
         type="search"
-        placeholder="Search VLAN, VID or subnet…"
+        placeholder="Search VLAN, VID or template…"
         class="input input-bordered input-sm w-full max-w-xs"
       />
       <span class="text-base-content/50 ml-auto text-sm">
@@ -147,21 +149,21 @@ async function confirmDelete() {
             <tr>
               <th>VID</th>
               <th>Name</th>
-              <th>Subnet</th>
-              <th>Group</th>
-              <th>Status</th>
+              <th>Description</th>
+              <th>Template</th>
               <th class="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="vlan in filtered" :key="vlan.id">
+            <tr v-for="vlan in filtered" :key="vlan.vid">
               <td class="font-net font-medium">{{ vlan.vid }}</td>
               <td class="font-net">{{ vlan.name }}</td>
-              <td class="font-net text-sm">
-                {{ ipamStore.prefixByVlan.get(vlan.id)?.prefix ?? '—' }}
+              <td class="text-base-content/60 text-sm">{{ vlan.description ?? '—' }}</td>
+              <td>
+                <span class="badge badge-sm badge-soft" :class="templateBadgeClass(vlan.template)">
+                  {{ templateName(vlan.template) }}
+                </span>
               </td>
-              <td class="text-base-content/60 text-sm">{{ vlan.group?.name ?? '—' }}</td>
-              <td><StatusBadge :status="vlan.status" /></td>
               <td class="text-right">
                 <button
                   v-if="auth.canWrite"
@@ -180,8 +182,8 @@ async function confirmDelete() {
     <BaseModal
       :open="formOpen"
       title="Create VLAN"
-      subtitle="Creates the VLAN in NetBox, plus an optional prefix and layer-3 services."
-      size="xl"
+      subtitle="Creates the VLAN in NetBox at the active site."
+      size="lg"
       @close="formOpen = false"
     >
       <VlanForm v-model="draft" @submit="save" />
@@ -196,8 +198,8 @@ async function confirmDelete() {
 
     <BaseModal :open="Boolean(deleteTarget)" title="Delete VLAN" @close="deleteTarget = null">
       <p>
-        Delete VLAN <strong class="font-net">{{ deleteTarget?.vid }} ({{ deleteTarget?.name }})</strong>
-        and its prefix? Ports still assigned to it will block the deletion.
+        Delete VLAN <strong class="font-net">{{ deleteTarget?.vid }} ({{ deleteTarget?.name }})</strong>?
+        Ports still assigned to it will block the deletion.
       </p>
       <template #actions>
         <button class="btn btn-ghost btn-sm" @click="deleteTarget = null">Cancel</button>

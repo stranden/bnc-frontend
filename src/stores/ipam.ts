@@ -1,105 +1,71 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { prefixesApi, vlanGroupsApi, vlansApi } from '@/api'
-import type { Prefix, VLAN, VLANGroup, VlanProvisionRequest } from '@/types/bnc'
+import { computed, ref, watch } from 'vue'
+import { vlansApi } from '@/api'
+import type { Vlan, VlanCreate, VlanUpdate } from '@/types/bnc'
 import { useSiteStore } from './site'
 
-export function emptyVlanRequest(siteId: number | null): VlanProvisionRequest {
+export function emptyVlanDraft(siteId: number | null): VlanCreate {
   return {
-    site: siteId ?? 0,
-    name: '',
+    site_id: siteId ?? 0,
     vid: 100,
-    group: null,
+    name: '',
     description: '',
-    status: 'active',
-    prefix: '',
-    routing: {
-      enabled: false,
-      gateway: '',
-      vrf: null,
-      hsrp: { enabled: false, group: null, virtual_ip: '', priority: 100 },
-    },
-    dhcp: {
-      enabled: false,
-      relay_servers: [],
-      pool_start: '',
-      pool_end: '',
-      lease_time: 86400,
-    },
-    multicast: {
-      enabled: false,
-      igmp_snooping: true,
-      querier: true,
-      igmp_version: 3,
-      rendezvous_point: '',
-      pim_mode: 'sparse',
-      ssm_range: '232.0.0.0/8',
-    },
+    template: null,
   }
 }
 
+/**
+ * VLANs, scoped to the active site (the backend requires `site_id` on every
+ * VLAN request — there is no cross-site listing).
+ */
 export const useIpamStore = defineStore('ipam', () => {
-  const vlans = ref<VLAN[]>([])
-  const vlanGroups = ref<VLANGroup[]>([])
-  const prefixes = ref<Prefix[]>([])
+  const vlans = ref<Vlan[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
   const siteStore = useSiteStore()
 
-  const visibleVlans = computed(() => {
-    const siteId = siteStore.activeSiteId
-    const list = siteId === null ? vlans.value : vlans.value.filter((v) => v.site?.id === siteId)
-    return [...list].sort((a, b) => a.vid - b.vid)
-  })
-
-  const visibleGroups = computed(() => {
-    const siteId = siteStore.activeSiteId
-    if (siteId === null) return vlanGroups.value
-    return vlanGroups.value.filter((g) => !g.site || g.site.id === siteId)
-  })
-
-  /** Prefix lookup keyed by VLAN id, so the VLAN table can show its subnet. */
-  const prefixByVlan = computed(() => {
-    const map = new Map<number, Prefix>()
-    for (const prefix of prefixes.value) {
-      if (prefix.vlan?.id) map.set(prefix.vlan.id, prefix)
-    }
-    return map
-  })
+  const visibleVlans = computed(() => [...vlans.value].sort((a, b) => a.vid - b.vid))
 
   /** VLAN ids already taken at the active site, to validate new VLAN ids. */
   const usedVids = computed(() => new Set(visibleVlans.value.map((v) => v.vid)))
 
   async function fetchAll(): Promise<void> {
+    const siteId = siteStore.activeSiteId
+    if (siteId === null) {
+      vlans.value = []
+      return
+    }
+
     loading.value = true
     error.value = null
     try {
-      const [vlanResult, groupResult, prefixResult] = await Promise.all([
-        vlansApi.list(),
-        vlanGroupsApi.list(),
-        prefixesApi.list(),
-      ])
-      vlans.value = vlanResult
-      vlanGroups.value = groupResult
-      prefixes.value = prefixResult
+      vlans.value = await vlansApi.list(siteId)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to load IPAM data'
+      error.value = err instanceof Error ? err.message : 'Failed to load VLANs'
     } finally {
       loading.value = false
     }
   }
 
-  async function provisionVlan(payload: VlanProvisionRequest): Promise<VLAN> {
-    const vlan = await vlansApi.provision(payload)
+  // Reload whenever the active site changes.
+  watch(() => siteStore.activeSiteId, fetchAll)
+
+  async function createVlan(payload: VlanCreate): Promise<Vlan> {
+    const vlan = await vlansApi.create(payload)
     await fetchAll()
     return vlan
   }
 
-  async function deleteVlan(id: number): Promise<void> {
-    await vlansApi.remove(id)
-    vlans.value = vlans.value.filter((v) => v.id !== id)
-    prefixes.value = prefixes.value.filter((p) => p.vlan?.id !== id)
+  async function updateVlan(vid: number, payload: VlanUpdate): Promise<Vlan> {
+    const vlan = await vlansApi.update(vid, payload)
+    await fetchAll()
+    return vlan
+  }
+
+  async function deleteVlan(vid: number, siteId: number): Promise<void> {
+    await vlansApi.remove(vid, siteId)
+    vlans.value = vlans.value.filter((v) => v.vid !== vid)
   }
 
   /** Next free VLAN id at the active site, starting from `from`. */
@@ -111,16 +77,13 @@ export const useIpamStore = defineStore('ipam', () => {
 
   return {
     vlans,
-    vlanGroups,
-    prefixes,
     loading,
     error,
     visibleVlans,
-    visibleGroups,
-    prefixByVlan,
     usedVids,
     fetchAll,
-    provisionVlan,
+    createVlan,
+    updateVlan,
     deleteVlan,
     suggestVid,
   }

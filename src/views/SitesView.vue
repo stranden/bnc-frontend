@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
 import { useDeviceStore } from '@/stores/devices'
 import { useIpamStore } from '@/stores/ipam'
 import { useSiteStore } from '@/stores/site'
@@ -18,15 +17,6 @@ const deviceCountBySite = computed(() => {
   for (const device of deviceStore.devices) {
     if (!device.site) continue
     counts.set(device.site.id, (counts.get(device.site.id) ?? 0) + 1)
-  }
-  return counts
-})
-
-const vlanCountBySite = computed(() => {
-  const counts = new Map<number, number>()
-  for (const vlan of ipamStore.vlans) {
-    if (!vlan.site) continue
-    counts.set(vlan.site.id, (counts.get(vlan.site.id) ?? 0) + 1)
   }
   return counts
 })
@@ -98,9 +88,10 @@ async function refresh() {
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <h2 class="truncate font-semibold">{{ site.name }}</h2>
-              <p class="text-base-content/50 font-net truncate text-xs">{{ site.slug }}</p>
+              <p v-if="site.site_group" class="text-base-content/50 font-net truncate text-xs">
+                {{ site.site_group }}
+              </p>
             </div>
-            <StatusBadge :status="site.status" />
           </div>
 
           <p v-if="site.description" class="text-base-content/60 line-clamp-2 text-sm">
@@ -108,9 +99,9 @@ async function refresh() {
           </p>
 
           <div class="text-base-content/60 flex flex-wrap gap-4 text-sm">
-            <span v-if="site.region">◈ {{ site.region.name }}</span>
-            <span>▦ {{ deviceCountBySite.get(site.id) ?? 0 }} devices</span>
-            <span>⇄ {{ vlanCountBySite.get(site.id) ?? 0 }} VLANs</span>
+            <span v-if="site.tenant">◈ {{ site.tenant }}</span>
+            <span>▦ {{ deviceCountBySite.get(site.id) ?? site.device_count }} devices</span>
+            <span>⇄ {{ site.vlan_count }} VLANs</span>
           </div>
 
           <div class="card-actions justify-end">

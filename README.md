@@ -1,6 +1,6 @@
 # BNC Frontend
 
-Vue 3 frontend for the [Broadcast Network Controller (BNC)](../bnc-backend)
+Vue 3 frontend for the [Broadcast Network Controller (BNC)](https://github.com/stranden/bnc-backend)
 backend.
 
 BNC uses [NetBox](https://netbox.dev) as its SSoT/NSoT — there is no separate
@@ -30,15 +30,11 @@ npm install
 npm run dev
 ```
 
-The app runs entirely on mock data by default (`VITE_USE_MOCK=true`), so no
-backend is required to develop against it. Sign in with any username and a
-password of at least three characters.
-
-To point it at a running backend:
+The frontend always talks to the real BNC backend — there is no mock mode.
+Set `VITE_BACKEND_URL` to point the dev server at a running backend:
 
 ```env
-VITE_USE_MOCK=false
-VITE_PROXY_TARGET=http://localhost:8000
+VITE_BACKEND_URL=http://localhost:8000
 ```
 
 ## Features
@@ -48,10 +44,10 @@ VITE_PROXY_TARGET=http://localhost:8000
 | Login             | `/login`             | Pluggable auth provider (see below).                                |
 | Overview          | `/`                  | Counts and recent devices for the active site.                      |
 | Sites             | `/sites`             | BNC-tagged sites; a single site becomes the default automatically.  |
-| Devices           | `/devices`           | List, create, edit and delete switches.                             |
-| Switch ports      | `/devices/:id/ports` | Stage template assignments per port, review the diff, then apply.   |
-| Port templates    | `/templates`         | Built-in AES67 / ST 2110 / Dante / data / uplink profiles + custom. |
-| VLANs & subnets   | `/vlans`             | Create VLANs with optional routing, DHCP and multicast/IGMP.        |
+| Devices           | `/devices`           | List, create, edit and delete switches. *(backend not implemented yet)* |
+| Switch ports      | `/devices/:id/ports` | Stage template assignments per port, review the diff, then apply. *(backend not implemented yet)* |
+| Network templates | `/templates`         | Read-only broadcast traffic classes (AES67, Dante, Data, SMPTE 2110). |
+| VLANs             | `/vlans`             | Create, edit and delete VLANs at the active site, tagged with a network template. |
 
 ### Default site
 
@@ -61,18 +57,12 @@ site switcher collapses to a static label. The selection is persisted in both
 layer can read it server-side). If the persisted site later disappears from
 NetBox, the selection is cleared rather than silently showing nothing.
 
-### Switchport templates
+### Network templates
 
-Templates are BNC-owned broadcast profiles, not NetBox objects. Each one
-describes how a class of port should be configured: VLAN and port mode, MTU,
-QoS/DSCP marking, PTP profile and intervals, IGMP snooping/querier behaviour,
-and edge protection. Five profiles ship built in — SMPTE ST 2110, AES67, Dante,
-Standard Data and Media Uplink. Built-ins cannot be edited or deleted, but can
-be cloned into an editable custom template.
-
-Assignments on the switch-port page are staged client-side, so a whole patch can
-be laid out before anything is pushed. "Review & apply" first runs a dry run
-against the backend and shows the resulting diff, and only then applies it.
+Network templates are BNC-owned traffic classes (AES67, Dante, Data, SMPTE
+2110) served read-only from the backend (`GET /templates`). A VLAN can be
+tagged with a template's slug to describe the traffic class it carries; the
+frontend cannot create, edit or delete templates.
 
 ## Authentication
 
@@ -93,17 +83,18 @@ Adding OIDC/SAML later is a single extra branch in `stores/auth.ts`.
 
 ## Backend status
 
-The backend currently exposes only read-only list endpoints. Everything else is
-served by the mock transport in `src/api/mock/`, which implements the contract
-the backend is expected to grow. Each entry in `src/api/index.ts` is annotated
-`backend: exists` or `backend: pending`.
+Everything the frontend calls goes straight to the real backend — there is no
+mock transport. Each entry in `src/api/index.ts` is annotated `backend:
+exists` or `backend: pending`; endpoints marked `pending` will fail with a
+normal HTTP error until the backend implements them.
 
 Implemented upstream today:
 
 ```
-GET  /sites  /devices  /device-types  /prefixes  /ip-addresses  /vlan-groups  /vlans
+GET  /sites  /sites/{id}
+GET  /vlans  /vlans/{vid}   POST /vlans   PATCH /vlans/{vid}   DELETE /vlans/{vid}
+GET  /templates  /templates/{slug}
 GET  /healthz  /readyz
-POST /webhooks/netbox
 ```
 
 Expected by this frontend, still to be implemented:
@@ -112,27 +103,20 @@ Expected by this frontend, still to be implemented:
 POST   /auth/login                    PATCH  /devices/{id}
 POST   /auth/logout                   DELETE /devices/{id}
 GET    /auth/me                       GET    /interfaces?device_id=
-POST   /devices                       PATCH  /interfaces/{id}
-POST   /vlans                         POST   /interfaces/apply-templates
-DELETE /vlans/{id}                    GET    /switchport-templates
-                                      POST   /switchport-templates
-                                      PATCH  /switchport-templates/{slug}
-                                      DELETE /switchport-templates/{slug}
+GET    /devices                       PATCH  /interfaces/{id}
+GET    /device-types                  POST   /interfaces/apply-templates
+POST   /devices                       GET    /ip-addresses
 ```
 
 The backend also does not yet report whether a device carries
 `bnc-state: manage`. The frontend reads an optional `manageable` boolean on the
 device schema; until it is populated, no device is treated as pushable.
 
-With `VITE_MOCK_UNIMPLEMENTED=true` (the default) the real endpoints are used
-where they exist and the rest fall back to the mock, so the two can be wired up
-incrementally.
-
 ## Project layout
 
 ```
 src/
-  api/          transport, typed endpoint modules, mock backend
+  api/          transport and typed endpoint modules
   components/   reusable UI (modal, forms, badges, site switcher)
   config.ts     runtime + build-time configuration
   layouts/      authenticated app shell
@@ -141,53 +125,7 @@ src/
   types/        types mirroring the backend Pydantic schemas
   utils/        IPv4/CIDR helpers
   views/        page components
-docker/
-  nginx.conf.template        nginx config, rendered by envsubst at start
-  40-bnc-runtime-config.sh   writes /config.js from BNC_* env vars
 ```
-
-## Docker
-
-The image is a multi-stage build: Node compiles the app, then nginx serves the
-static output and proxies `/api` to the BNC backend. Because the browser and
-the API share an origin, the backend needs no CORS configuration.
-
-```bash
-docker build -t bnc-frontend:local .
-docker run --rm -p 8080:8080 \
-  -e BNC_BACKEND_URL=http://bnc-backend:8000 \
-  bnc-frontend:local
-```
-
-The image runs the same way on a Linux server and on Windows Docker Desktop
-(such as an EIC PC); there are no bind mounts or host paths.
-
-### Runtime configuration
-
-Vite normally inlines `import.meta.env` at build time, which would mean a
-rebuild per environment. Instead the container regenerates `/config.js` on
-every start from the environment, and the app reads that first — so a single
-image can be promoted from a test bench to an OB truck unchanged.
-
-| Variable                  | Default                     | Purpose                                              |
-|---------------------------|-----------------------------|------------------------------------------------------|
-| `BNC_BACKEND_URL`         | `http://bnc-backend:8000`   | Where nginx forwards `/api`.                          |
-| `BNC_API_BASE_URL`        | `/api`                      | Base path the frontend calls.                         |
-| `BNC_USE_MOCK`            | `false`                     | Serve everything from the built-in mock.              |
-| `BNC_MOCK_UNIMPLEMENTED`  | `true`                      | Mock only the endpoints the backend still lacks.      |
-| `BNC_MOCK_LATENCY`        | `0`                         | Artificial mock latency, in ms.                       |
-| `BNC_MOCK_SINGLE_SITE`    | `false`                     | Seed one site, to test default-site selection.        |
-| `BNC_AUTH_PROVIDER`       | `dev`                       | `dev`, `token` or `netbox`.                           |
-
-Precedence is runtime `/config.js` → build-time `.env` → built-in fallback.
-
-The container listens on **8080** (an unprivileged port) and exposes
-`/healthz` for container health checks. It is designed to sit alongside the
-backend on a shared Docker network, where `BNC_BACKEND_URL` resolves via the
-service name.
-
-> Set `BNC_USE_MOCK=false` for any real deployment, otherwise the UI will
-> happily show seeded demo data instead of your NetBox inventory.
 
 ## Scripts
 

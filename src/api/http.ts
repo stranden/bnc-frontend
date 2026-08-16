@@ -1,20 +1,13 @@
 /**
  * HTTP transport for the BNC backend.
  *
- * The backend is still read-only (it only exposes list endpoints for the
- * NetBox objects tagged `external-ctrl: bnc`). Everything else the UI needs —
- * device CRUD, interfaces, switchport templates, VLAN provisioning — is
- * routed through the mock transport until the backend grows those endpoints.
- *
- * Set `USE_MOCK` to false (build-time `VITE_USE_MOCK`) once the backend is
- * complete; no component code changes. Endpoints the backend still doesn't
- * implement are listed explicitly in `api/mock` (`MOCKED_WRITE_ENDPOINTS`)
- * and stay mocked even when `USE_MOCK` is false.
+ * All requests hit the real backend. Endpoints it does not implement yet
+ * (device CRUD, interfaces, switchport templates, ...) simply fail with a
+ * normal HTTP error until the backend grows them — no mock fallback.
  */
-import { API_BASE_URL, USE_MOCK } from '@/config'
-import { handleMock, isMockedEndpoint } from './mock'
 
-export { API_BASE_URL, USE_MOCK }
+/** The backend serves every endpoint under this path. Not configurable. */
+export const API_BASE_URL = '/api'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -91,10 +84,6 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  if (USE_MOCK || isMockedEndpoint(method, path)) {
-    return handleMock<T>(method, path, options)
-  }
-
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
 

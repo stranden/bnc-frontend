@@ -1,9 +1,10 @@
 /**
  * Typed API surface for the BNC backend.
  *
- * Endpoints annotated `backend: pending` do not exist upstream yet and are
- * served by the mock transport (see `api/mock`). The signatures are the
- * contract the backend is expected to implement.
+ * Endpoints annotated `backend: pending` do not exist upstream yet — calling
+ * them will simply fail with a normal HTTP error until the backend
+ * implements them. The signatures are the contract the backend is expected
+ * to implement.
  */
 import { http } from './http'
 import type {
@@ -17,14 +18,12 @@ import type {
   IPAddress,
   LoginRequest,
   LoginResponse,
-  Prefix,
+  NetworkTemplate,
   Site,
-  SwitchportTemplate,
-  SwitchportTemplateCreate,
   User,
-  VLAN,
-  VLANGroup,
-  VlanProvisionRequest,
+  Vlan,
+  VlanCreate,
+  VlanUpdate,
 } from '@/types/bnc'
 
 export const authApi = {
@@ -72,38 +71,27 @@ export const interfacesApi = {
 }
 
 export const templatesApi = {
-  /** backend: pending — BNC-owned switchport profiles. */
-  list: () => http.get<SwitchportTemplate[]>('/switchport-templates'),
-  get: (slug: string) => http.get<SwitchportTemplate>(`/switchport-templates/${slug}`),
-  create: (payload: SwitchportTemplateCreate) =>
-    http.post<SwitchportTemplate>('/switchport-templates', payload),
-  update: (slug: string, payload: Partial<SwitchportTemplate>) =>
-    http.patch<SwitchportTemplate>(`/switchport-templates/${slug}`, payload),
-  remove: (slug: string) => http.delete<void>(`/switchport-templates/${slug}`),
+  /** backend: exists — GET /templates. Read-only network templates (aes67, dante, data, smpte-2110). */
+  list: () => http.get<NetworkTemplate[]>('/templates'),
+  get: (slug: string) => http.get<NetworkTemplate>(`/templates/${slug}`),
 }
 
 export const vlansApi = {
-  /** backend: exists — GET /vlans */
-  list: (siteId?: number | null) =>
-    http.get<VLAN[]>('/vlans', { query: { site_id: siteId ?? undefined } }),
-  /** backend: pending — provisions VLAN + prefix + routing/DHCP/multicast. */
-  provision: (payload: VlanProvisionRequest) => http.post<VLAN>('/vlans', payload),
-  remove: (id: number) => http.delete<void>(`/vlans/${id}`),
-}
-
-export const vlanGroupsApi = {
-  /** backend: exists — GET /vlan-groups */
-  list: () => http.get<VLANGroup[]>('/vlan-groups'),
-}
-
-export const prefixesApi = {
-  /** backend: exists — GET /prefixes */
-  list: (siteId?: number | null) =>
-    http.get<Prefix[]>('/prefixes', { query: { site_id: siteId ?? undefined } }),
+  /** backend: exists — GET /vlans?site_id= */
+  list: (siteId: number) => http.get<Vlan[]>('/vlans', { query: { site_id: siteId } }),
+  get: (vid: number, siteId: number) =>
+    http.get<Vlan>(`/vlans/${vid}`, { query: { site_id: siteId } }),
+  /** backend: exists — POST /vlans */
+  create: (payload: VlanCreate) => http.post<Vlan>('/vlans', payload),
+  /** backend: exists — PATCH /vlans/{vid} */
+  update: (vid: number, payload: VlanUpdate) => http.patch<Vlan>(`/vlans/${vid}`, payload),
+  /** backend: exists — DELETE /vlans/{vid}?site_id= */
+  remove: (vid: number, siteId: number) =>
+    http.delete<void>(`/vlans/${vid}`, { query: { site_id: siteId } }),
 }
 
 export const ipAddressesApi = {
-  /** backend: exists — GET /ip-addresses */
+  /** backend: pending */
   list: () => http.get<IPAddress[]>('/ip-addresses'),
 }
 

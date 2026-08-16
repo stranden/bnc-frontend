@@ -16,14 +16,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: Number(env.VITE_PORT ?? 5173),
-      // When VITE_PROXY_TARGET is set, /api is proxied to the BNC backend so the
-      // browser never talks to it cross-origin during development.
-      proxy: env.VITE_PROXY_TARGET
+      // When VITE_BACKEND_URL is set, /api is proxied to the BNC backend so the
+      // browser never talks to it cross-origin during development. The backend
+      // itself serves everything under /api, so no path rewrite is needed.
+      proxy: env.VITE_BACKEND_URL
         ? {
             '/api': {
-              target: env.VITE_PROXY_TARGET,
+              target: env.VITE_BACKEND_URL,
               changeOrigin: true,
-              rewrite: (path: string) => path.replace(/^\/api/, ''),
             },
           }
         : undefined,

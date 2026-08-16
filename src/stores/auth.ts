@@ -67,6 +67,19 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
+      if (AUTH_PROVIDER === 'dev') {
+        // Accepts any credentials locally — no backend to call yet.
+        if (!credentials.username || (credentials.password ?? '').length < 3) {
+          throw new ApiError('Enter a username and a password of at least 3 characters', 400)
+        }
+        persistSession('dev-session-token', {
+          username: credentials.username,
+          display_name: credentials.username,
+          roles: ['operator', 'admin'],
+        })
+        return true
+      }
+
       if (AUTH_PROVIDER === 'netbox') {
         // The password field carries the NetBox API token in this mode.
         if (!credentials.password) throw new ApiError('A NetBox API token is required', 400)

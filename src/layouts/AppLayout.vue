@@ -9,7 +9,6 @@ import { useIpamStore } from '@/stores/ipam'
 import { useSiteStore } from '@/stores/site'
 import { useTemplateStore } from '@/stores/templates'
 import { useUiStore } from '@/stores/ui'
-import { USE_MOCK } from '@/api/http'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -46,7 +45,7 @@ const nav = [
   },
   {
     href: { name: 'templates' },
-    label: 'Port templates',
+    label: 'Templates',
     icon: `<line x1="21" x2="14" y1="4" y2="4" />
            <line x1="10" x2="3" y1="4" y2="4" />
            <line x1="21" x2="12" y1="12" y2="12" />
@@ -59,7 +58,7 @@ const nav = [
   },
   {
     href: { name: 'vlans' },
-    label: 'VLANs & subnets',
+    label: 'VLANs',
     icon: `<rect x="16" y="16" width="6" height="6" rx="1" />
            <rect x="2" y="16" width="6" height="6" rx="1" />
            <rect x="9" y="2" width="6" height="6" rx="1" />
@@ -135,15 +134,6 @@ async function signOut() {
 
         <!-- Right side -->
         <div class="ml-auto flex items-center gap-2">
-
-          <!-- Mock badge -->
-          <span
-            v-if="USE_MOCK"
-            class="badge badge-warning badge-sm gap-1"
-            title="Backend calls are served by the built-in mock transport"
-          >
-            mock data
-          </span>
 
           <!-- User menu -->
           <div class="dropdown dropdown-end">

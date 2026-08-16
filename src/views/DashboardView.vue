@@ -4,16 +4,21 @@ import { RouterLink } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useDeviceStore } from '@/stores/devices'
-import { useIpamStore } from '@/stores/ipam'
 import { useSiteStore } from '@/stores/site'
-import { TEMPLATE_KIND_META, useTemplateStore } from '@/stores/templates'
+import { templateBadgeClass, useTemplateStore } from '@/stores/templates'
 
 const siteStore = useSiteStore()
 const deviceStore = useDeviceStore()
 const templateStore = useTemplateStore()
-const ipamStore = useIpamStore()
 
 const recentDevices = computed(() => deviceStore.visibleDevices.slice(0, 6))
+
+/** VLAN count comes straight from the site(s) — no need to fetch every VLAN. */
+const vlanCount = computed(() =>
+  siteStore.activeSite
+    ? siteStore.activeSite.vlan_count
+    : siteStore.sites.reduce((sum, site) => sum + site.vlan_count, 0),
+)
 
 const cards = computed(() => [
   {
@@ -29,15 +34,15 @@ const cards = computed(() => [
     to: { name: 'devices' } as const,
   },
   {
-    label: 'Port templates',
+    label: 'Templates',
     value: templateStore.templates.length,
-    hint: `${templateStore.custom.length} custom`,
+    hint: 'network traffic classes',
     to: { name: 'templates' } as const,
   },
   {
     label: 'VLANs',
-    value: ipamStore.visibleVlans.length,
-    hint: `${ipamStore.prefixes.length} prefixes`,
+    value: vlanCount.value,
+    hint: siteStore.activeSite ? `at ${siteStore.activeSite.name}` : 'select a site',
     to: { name: 'vlans' } as const,
   },
 ])
@@ -125,8 +130,8 @@ const cards = computed(() => [
       <section class="card bg-base-100 border-base-300 border">
         <div class="card-body p-0">
           <div class="border-base-300 flex items-center justify-between border-b px-5 py-4">
-            <h2 class="font-semibold">Port templates</h2>
-            <RouterLink :to="{ name: 'templates' }" class="btn btn-xs btn-ghost">Manage</RouterLink>
+            <h2 class="font-semibold">Templates</h2>
+            <RouterLink :to="{ name: 'templates' }" class="btn btn-xs btn-ghost">View all</RouterLink>
           </div>
           <ul class="divide-base-300 divide-y">
             <li
@@ -136,14 +141,10 @@ const cards = computed(() => [
             >
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium">{{ template.name }}</p>
-                <p class="text-base-content/50 truncate text-xs">
-                  MTU {{ template.mtu ?? 'auto' }} ·
-                  {{ template.ptp.enabled ? 'PTP' : 'no PTP' }} ·
-                  IGMPv{{ template.multicast.igmp_version ?? '-' }}
-                </p>
+                <p class="text-base-content/50 truncate text-xs">{{ template.description }}</p>
               </div>
-              <span class="badge badge-sm" :class="TEMPLATE_KIND_META[template.kind].badge">
-                {{ TEMPLATE_KIND_META[template.kind].label }}
+              <span class="badge badge-sm" :class="templateBadgeClass(template.slug)">
+                {{ template.slug }}
               </span>
             </li>
           </ul>

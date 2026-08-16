@@ -14,7 +14,7 @@ import { ApiError } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useDeviceStore } from '@/stores/devices'
 import { useIpamStore } from '@/stores/ipam'
-import { TEMPLATE_KIND_META, useTemplateStore } from '@/stores/templates'
+import { templateBadgeClass, useTemplateStore } from '@/stores/templates'
 import { useToastStore } from '@/stores/toast'
 import type { ApplyTemplatesResult, PortAssignment } from '@/types/bnc'
 
@@ -165,7 +165,7 @@ function templateBadge(slug: string | null) {
   if (!slug) return { label: 'unconfigured', badge: 'badge-ghost' }
   const template = templateStore.bySlug.get(slug)
   if (!template) return { label: slug, badge: 'badge-error' }
-  return { label: template.name, badge: TEMPLATE_KIND_META[template.kind].badge }
+  return { label: template.name, badge: templateBadgeClass(slug) }
 }
 </script>
 
@@ -226,7 +226,7 @@ function templateBadge(slug: string | null) {
             <div class="label py-1"><span class="label-text text-xs">VLAN override</span></div>
             <select v-model.number="bulkVlan" class="select select-bordered select-sm w-56">
               <option :value="null">Use template default</option>
-              <option v-for="vlan in ipamStore.visibleVlans" :key="vlan.id" :value="vlan.id">
+              <option v-for="vlan in ipamStore.visibleVlans" :key="vlan.vid" :value="vlan.vid">
                 {{ vlan.vid }} — {{ vlan.name }}
               </option>
             </select>
